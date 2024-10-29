@@ -12,6 +12,6 @@ class EksStack(Stack):
         self.cluster = eks.Cluster(
             self, "EksCluster",
             vpc=vpc,
-            version=eks.KubernetesVersion.V1_21,
+            version=eks.KubernetesVersion.V1_31,
             default_capacity=2  # Default node group with 2 instances
         )
