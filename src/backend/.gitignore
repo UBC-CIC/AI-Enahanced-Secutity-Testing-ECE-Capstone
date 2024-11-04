@@ -1,0 +1,4 @@
+# TODO: We may need to ignore this config.py when we are using ZAP API key
+# config.py
+
+.venv
