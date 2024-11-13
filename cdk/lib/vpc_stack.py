@@ -11,6 +11,7 @@ class AestVpcStack(Stack):
         self.vpc = ec2.Vpc(
             self, "AestVpc",
             max_azs=2, 
+            nat_gateways=1,
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="AestPublicSubnet",
