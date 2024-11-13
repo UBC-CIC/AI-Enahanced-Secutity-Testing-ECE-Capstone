@@ -1,4 +1,7 @@
 replicaCount: 1
-image:
-  repository: owasp/zap2docker-stable
+
+zap:
+  image:
+    repository: ghcr.io/zaproxy/zaproxy
+    tag: stable
   port: 8080

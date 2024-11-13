@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: zap
-        image: {{ .Values.image.repository }}
+        image: {{ .Values.zap.image.repository }}:{{ .Values.zap.image.tag }}
         ports:
-        - containerPort: {{ .Values.image.port }}
+        - containerPort: {{ .Values.zap.port }}
