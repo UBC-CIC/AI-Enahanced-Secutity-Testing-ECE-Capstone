@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-zap
+spec:
+  selector:
+    app: zap
+  ports:
+    - protocol: TCP
+      port: {{ .Values.image.port }}
+      targetPort: {{ .Values.image.port }}
+  type: ClusterIP  # Accessible only within the cluster

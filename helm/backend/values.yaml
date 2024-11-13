@@ -1,0 +1,12 @@
+replicaCount: 1
+
+image:
+  repository: 619071345478.dkr.ecr.us-west-2.amazonaws.com/aest/backend
+  tag: latest
+
+imagePullSecret: ecr-secret
+
+service:
+  type: LoadBalancer
+
+zapBaseUrl: "http://zap-service:8080"

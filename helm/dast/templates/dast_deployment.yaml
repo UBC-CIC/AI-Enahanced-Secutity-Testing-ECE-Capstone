@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: zap-deployment
+  name: {{ .Release.Name }}-zap
   labels:
     app: zap
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: zap
@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: zap
-        image: owasp/zap2docker-stable
+        image: {{ .Values.image.repository }}
         ports:
-        - containerPort: 8080
+        - containerPort: {{ .Values.image.port }}

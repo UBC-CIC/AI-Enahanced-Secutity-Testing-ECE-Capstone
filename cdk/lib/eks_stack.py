@@ -14,11 +14,6 @@ from config import IAM_ROLE_ARN
 
 
 class EksStack(Stack):
-    dast_deployment_path = "eks_manifests/dast_deployment.yaml"
-    dast_service_path = "eks_manifests/dast_service.yaml"
-    backend_deployment_path = "eks_manifests/backend_deployment.yaml"
-    backend_service_path = "eks_manifests/backend_service.yaml"
-
     def __init__(self, scope: Construct, id: str, vpc: ec2.Vpc, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
@@ -31,22 +26,6 @@ class EksStack(Stack):
             kubectl_layer = KubectlV31Layer(self, "KubectlLayer"),
             default_capacity=1,
             default_capacity_instance=ec2.InstanceType("t3.small")  
-        )
-
-        self.cluster.add_manifest(
-            "DastDeployment",
-            self.load_eks_manifest(self.dast_deployment_path)
-        )
-        self.cluster.add_manifest(
-            "DastService",
-            self.load_eks_manifest(self.dast_service_path)
-        )
-        
-        self.cluster.add_manifest(
-            "BackendDeployment", self.load_eks_manifest(self.backend_deployment_path)
-        )
-        self.cluster.add_manifest(
-            "BackendService", self.load_eks_manifest(self.backend_service_path)
         )
 
         capstone_role = iam.Role.from_role_arn(self, "ExternalRole", IAM_ROLE_ARN)

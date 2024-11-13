@@ -1,0 +1,4 @@
+replicaCount: 1
+image:
+  repository: owasp/zap2docker-stable
+  port: 8080
