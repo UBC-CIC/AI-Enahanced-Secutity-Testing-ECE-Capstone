@@ -29,7 +29,8 @@ class EksStack(Stack):
             vpc=vpc,
             version=eks.KubernetesVersion.V1_31,
             kubectl_layer = KubectlV31Layer(self, "KubectlLayer"),
-            default_capacity=2 
+            default_capacity=1,
+            default_capacity_instance=ec2.InstanceType("t3.small")  
         )
 
         self.cluster.add_manifest(
