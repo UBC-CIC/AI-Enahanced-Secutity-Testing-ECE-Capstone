@@ -1,0 +1,6 @@
+apiVersion: v2
+name: zap-scan-job
+description: Helm chart for ZAP Baseline scan job
+type: application
+version: 0.1.0
+appVersion: "stable" 

@@ -1,0 +1,10 @@
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: zap-scan-config
+#   namespace: {{ .Values.job.namespace }}
+# data:
+#   zap-baseline-config.conf: |
+#     10010 WARN
+#     10011 WARN
+#     10012 WARN

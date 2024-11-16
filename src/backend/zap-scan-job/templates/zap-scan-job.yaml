@@ -1,0 +1,40 @@
+{{- if .Values.zapScanJobEnabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.job.name }}-{{ now | date "20060102150405" }}
+  namespace: {{ .Values.job.namespace }}
+spec:
+  parallelism: 1  # Ensures only one pod runs at a time
+  completions: 1  # Job completes after one successful pod
+  backoffLimit: 0 # No retry when job fails
+  ttlSecondsAfterFinished: 3600  # Cleanup completed job after 1 hour
+  template:
+    metadata:
+      labels:
+        app: zap-basescan
+    spec:
+      restartPolicy: Never  # Do not restart pods on failure
+      containers:
+      - name: zap-baseline
+        image: {{ .Values.job.image.repository }}:{{ .Values.job.image.tag }}
+        command:
+          - "zap-baseline.py"
+          - "-t"
+          - "{{ .Values.targetUrl }}" 
+          - "-r"
+          - "/zap/wrk/{{ .Values.reportFilename }}"  # Dynamic report filename
+        env:
+        - name: AWS_REGION
+          value: "{{ .Values.job.awsRegion }}"
+        - name: S3_BUCKET
+          value: "{{ .Values.job.s3Bucket }}"
+        - name: REPORT_FILENAME
+          value: "{{ .Values.reportFilename }}"  # Pass report filename to the container
+        volumeMounts:
+        - name: zap-reports
+          mountPath: /zap/wrk
+      volumes:
+      - name: zap-reports
+        emptyDir: {}
+{{- end }}

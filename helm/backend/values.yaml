@@ -3,6 +3,7 @@ replicaCount: 1
 image:
   repository: 619071345478.dkr.ecr.us-west-2.amazonaws.com/aest/backend
   tag: latest
+  pullPolicy: Always
 
 imagePullSecret: ecr-secret
 
