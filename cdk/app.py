@@ -3,19 +3,21 @@ import aws_cdk as cdk
 from lib.vpc_stack import AestVpcStack
 from lib.eks_stack import EksStack
 from lib.s3_stack import S3Stack
-from lib.eks_s3_access_stack import EksS3AccessStack
+from aws_cdk import App, CfnOutput
 
-app = cdk.App()
+app = App()
 
 vpc_stack = AestVpcStack(app, "AestVpcStack")
+s3_stack = S3Stack(app, "S3Stack", vpc=vpc_stack.vpc)
+eks_stack = EksStack(app, "EksStack", 
+    vpc=vpc_stack.vpc,
+    bucket=s3_stack.bucket
+)
 
-eks_stack = EksStack(app, "EksStack", vpc=vpc_stack.vpc)
-s3_stack = S3Stack(app, "S3Stack")
-EksS3AccessStack(
-    app, 
-    "EksS3AccessStack",
-    cluster=eks_stack.cluster,
-    s3_bucket=s3_stack.bucket
+# Output the bucket name for use in Helm values
+CfnOutput(s3_stack, "BucketName",
+    value=s3_stack.bucket.bucket_name,
+    description="Name of the S3 bucket for ZAP reports"
 )
 
 app.synth()

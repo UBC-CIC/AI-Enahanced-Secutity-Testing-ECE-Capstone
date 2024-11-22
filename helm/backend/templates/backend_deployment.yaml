@@ -24,5 +24,15 @@ spec:
         ports:
         - containerPort: 8000
         env:
+        - name: ZAP_REPORTS_PATH
+          value: "/reports"
         - name: ZAP_BASE_URL
           value: {{ .Values.zapBaseUrl }}
+        volumeMounts:
+        - name: zap-reports
+          mountPath: /reports
+          readOnly: false
+      volumes:
+      - name: zap-reports
+        persistentVolumeClaim:
+          claimName: zap-reports-pvc

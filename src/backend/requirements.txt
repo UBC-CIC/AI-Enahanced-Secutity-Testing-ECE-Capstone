@@ -51,3 +51,4 @@ uvloop==0.21.0
 watchfiles==0.24.0
 websocket-client==1.8.0
 websockets==13.1
+gunicorn

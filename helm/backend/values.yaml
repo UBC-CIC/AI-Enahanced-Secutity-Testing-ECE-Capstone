@@ -1,4 +1,6 @@
+# TODO: Parameterize these values such as repository, bucketName, arn, etc.
 replicaCount: 1
+namespace: default  
 
 image:
   repository: 619071345478.dkr.ecr.us-west-2.amazonaws.com/aest/backend
@@ -11,3 +13,11 @@ service:
   type: LoadBalancer
 
 zapBaseUrl: "http://zap-service:8080"
+
+s3:
+  bucketName: "s3stack-aestbucket11161ed0-5fzi3unignxa"
+  accessKey: ""
+
+serviceAccount:
+  name: backend-sa
+  roleArn: "arn:aws:iam::619071345478:role/EksStack-AestEksBackendServiceAccountRoleBC23901D-9hZvPAxMUGom"

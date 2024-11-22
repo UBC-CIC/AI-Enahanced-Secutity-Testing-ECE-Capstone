@@ -3,11 +3,33 @@ import subprocess
 import datetime
 import asyncio
 import boto3
+import json
 from fastapi import FastAPI, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from kubernetes import client, config
 from config import settings
+from urllib.parse import urlparse
 
 app = FastAPI()
+
+# Custom middleware to handle long-running requests
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await asyncio.wait_for(call_next(request), timeout=1800)
+            return response
+        except asyncio.TimeoutError:
+            return Response(
+                content=json.dumps({
+                    "detail": "Request timeout exceeded"
+                }),
+                status_code=504,
+                media_type="application/json"
+            )
+
+app.add_middleware(TimeoutMiddleware)
 
 # Load Kubernetes config
 config.load_incluster_config()
@@ -22,86 +44,98 @@ async def root():
 
 @app.post("/zap/basescan")
 async def zap_basescan(target_url: str):
-    release_name = f"zap-basescan-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # Validate URL
+    try:
+        result = urlparse(target_url)
+        if not all([result.scheme, result.netloc]):
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid URL format. Must include scheme (http/https)"
+            )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+
+    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    values_job_name = "zap-basescan-job"
+    release_name = f"zap-basescan-{timestamp}"
+    job_name = f"{values_job_name}-{timestamp}"
     namespace = "default"
-    report_filename = f"zap_baseline_report_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.html"
     chart_path = "/app/zap-scan-job"
 
     try:
-        # Trigger Helm release
+        # Trigger Helm release with timestamp
         helm_command = [
             "helm", "install", release_name, chart_path,
             "--namespace", namespace,
             "--set", f"targetUrl={target_url}",
-            "--set", f"zapScanJobEnabled=true",
-            "--set", f"reportFilename={report_filename}"
+            "--set", "zapScanJobEnabled=true",
+            "--set", f"job.name={values_job_name}",
+            "--set", f"job.timestamp={timestamp}"
         ]
-        result = subprocess.run(helm_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(
+            helm_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60
+        )
 
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"Helm release failed: {result.stderr}")
 
         print(f"Helm release triggered. Output:\n{result.stdout}")
 
-        # Introduce an initial delay for Helm to register resources
-        await asyncio.sleep(5)
+        # Wait for job completion
+        await wait_for_job_registration(job_name, namespace)
+        await wait_for_job_to_complete(job_name, namespace, timestamp)
 
-        # Wait for the Job to be registered in Kubernetes
-        await wait_for_job_registration(release_name, namespace)
+        # Get report
+        pod_name = await get_pod_for_job(job_name, namespace)
+        report_filename = f"{timestamp}-report.json"
+        
+        scan_results = await get_zap_report(report_filename)
+        return scan_results
 
-        # Wait for the Job to complete
-        await wait_for_job_to_complete(release_name, namespace)
+        # # File clean up. Not enabled atm.
+        # finally:
+        #     # File deletion
+        #     report_path = f"/reports/{report_filename}"
+        #     if os.path.exists(report_path):
+        #         os.remove(report_path)
 
-        # Get the associated pod and ensure it's in a valid state
-        pod_name = await get_pod_for_job(release_name, namespace)
-
-        # Copy the report from the pod
-        container_path = f"/zap/wrk/{report_filename}"
-        local_path = f"/tmp/{report_filename}"
-        subprocess.run(
-            ["kubectl", "cp", f"{namespace}/{pod_name}:{container_path}", local_path],
-            check=True
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": f"Scan failed: {str(e)}",
+                "job_name": job_name,
+                "timestamp": timestamp,
+                "target_url": target_url
+            }
         )
 
-        # Upload the report to S3
-        s3_key = f"zap-reports/{report_filename}"
-        with open(local_path, "rb") as report_file:
-            s3_client.upload_fileobj(report_file, settings.S3_BUCKET_NAME, s3_key)
-
-        # Clean up the local file
-        if os.path.exists(local_path):
-            os.remove(local_path)
-
-        return {
-            "message": f"ZAP Baseline scan completed. Report uploaded to S3.",
-            "s3_key": s3_key,
-        }
-
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=500, detail=f"File not found error: {str(e)}")
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Kubectl command failed: {e.output}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
-async def wait_for_job_registration(release_name: str, namespace: str):
+async def wait_for_job_registration(job_name: str, namespace: str):
     """Wait for the Job to be registered in Kubernetes."""
-    max_retries = 15  # Retry up to 15 times
-    delay_seconds = 5  # Wait 5 seconds between retries
+    max_retries = 15
+    delay_seconds = 5
 
     for attempt in range(max_retries):
         try:
-            job = k8s_api.read_namespaced_job(name=release_name, namespace=namespace)
-            print(f"Job '{release_name}' registered in Kubernetes: {job.metadata.name}")
+            print(f"Attempting to find job '{job_name}' in namespace '{namespace}'")
+            jobs = k8s_api.list_namespaced_job(namespace=namespace)
+            print(f"Found jobs: {[job.metadata.name for job in jobs.items]}")
+            
+            job = k8s_api.read_namespaced_job(name=job_name, namespace=namespace)
+            print(f"Job '{job_name}' registered in Kubernetes: {job.metadata.name}")
             return
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Attempt {attempt + 1}: Job '{release_name}' not found. Retrying in {delay_seconds} seconds...")
+                print(f"Attempt {attempt + 1}: Job '{job_name}' not found. Retrying in {delay_seconds} seconds...")
                 await asyncio.sleep(delay_seconds)
                 continue
-            raise  # Raise unexpected exceptions
+            raise
 
-    raise HTTPException(status_code=500, detail=f"Job '{release_name}' was not registered in Kubernetes within the expected time.")
+    raise HTTPException(status_code=500, detail=f"Job '{job_name}' was not registered in Kubernetes within the expected time.")
 
 async def get_pod_for_job(job_name: str, namespace: str) -> str:
     """Get the pod associated with a specific Job."""
@@ -127,20 +161,89 @@ async def get_pod_for_job(job_name: str, namespace: str) -> str:
 
     raise HTTPException(status_code=500, detail=f"No pod found for job '{job_name}' within the expected time.")
 
-async def wait_for_job_to_complete(release_name: str, namespace: str):
-    """Wait for the Job to complete with retries."""
-    max_retries = 30  # Poll for up to 5 minutes
-    delay_seconds = 10  # Wait 10 seconds between retries
+async def wait_for_job_to_complete(job_name: str, namespace: str, timestamp: str):
+    max_retries = 60
+    delay_seconds = 10
 
     for attempt in range(max_retries):
-        job_status = k8s_api.read_namespaced_job_status(name=release_name, namespace=namespace)
-        if job_status.status.succeeded:
-            print(f"Job '{release_name}' succeeded.")
-            return
-        elif job_status.status.failed:
-            raise HTTPException(status_code=500, detail=f"ZAP Baseline Job '{release_name}' failed.")
-        
-        print(f"Attempt {attempt + 1}: Job is still running. Retrying in {delay_seconds} seconds...")
-        await asyncio.sleep(delay_seconds)
+        try:
+            job_status = k8s_api.read_namespaced_job_status(name=job_name, namespace=namespace)
+            pod_name = await get_pod_for_job(job_name, namespace)
+            pod = core_v1_api.read_namespaced_pod(name=pod_name, namespace=namespace)
 
-    raise HTTPException(status_code=500, detail="Job did not complete within the expected time.")
+            # Check pod phase
+            if pod.status.phase in ["Succeeded", "Failed"]:
+                logs = core_v1_api.read_namespaced_pod_log(
+                    name=pod_name,
+                    namespace=namespace
+                )
+                
+                # Check for successful report generation with correct filename
+                report_filename = f"{timestamp}-report.json"
+                if f"Job report generated report /zap/wrk/{report_filename}" in logs:
+                    print(f"ZAP scan completed and report generated for job '{job_name}'")
+                    
+                    # Sleep for 2 seconds to ensure the file is fully written
+                    await asyncio.sleep(2)
+                    
+                    if "FAIL-NEW: 0" in logs:
+                        print("ZAP scan completed with no failures")
+                    else:
+                        print("ZAP scan completed with warnings (but no failures)")
+                    
+                    return
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail={
+                            "message": "ZAP scan failed to generate report",
+                            "logs": logs,
+                            "job_name": job_name,
+                            "pod_name": pod_name
+                        }
+                    )
+
+            print(f"Attempt {attempt + 1}: Job is still running. Retrying in {delay_seconds} seconds...")
+            await asyncio.sleep(delay_seconds)
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": f"Failed to check job status: {str(e)}",
+                    "job_name": job_name
+                }
+            )
+
+    raise HTTPException(
+        status_code=500,
+        detail=f"Job '{job_name}' did not complete within the expected time."
+    )
+
+async def get_zap_report(report_filename: str):
+    max_retries = 3
+    delay_seconds = 5
+    
+    for attempt in range(max_retries):
+        try:
+            report_path = f"/reports/{report_filename}"
+            with open(report_path, 'r') as f:
+                report_data = json.loads(f.read())
+            
+            # # Clean up report file after successful read, or we can set S3 to remove files after a certain time
+            # try:
+            #     os.remove(report_path)
+            #     print(f"Deleted report file: {report_path}")
+            # except Exception as cleanup_error:
+            #     print(f"Failed to delete report file (non-fatal): {cleanup_error}")
+                
+            return report_data
+                
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(delay_seconds)
+                continue
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error reading report: {str(e)}"
+            )

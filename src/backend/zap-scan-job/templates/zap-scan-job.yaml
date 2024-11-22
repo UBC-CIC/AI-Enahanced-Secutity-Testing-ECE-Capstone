@@ -2,39 +2,49 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.job.name }}-{{ now | date "20060102150405" }}
+  name: {{ .Values.job.name }}-{{ .Values.job.timestamp }}
   namespace: {{ .Values.job.namespace }}
 spec:
   parallelism: 1  # Ensures only one pod runs at a time
   completions: 1  # Job completes after one successful pod
   backoffLimit: 0 # No retry when job fails
-  ttlSecondsAfterFinished: 3600  # Cleanup completed job after 1 hour
+  ttlSecondsAfterFinished: 600  # Cleanup completed job after 10 minutes
   template:
-    metadata:
-      labels:
-        app: zap-basescan
     spec:
-      restartPolicy: Never  # Do not restart pods on failure
+      serviceAccountName: backend-sa
+      # initContainers:
+      # - name: init-volume
+      #   image: busybox
+      #   command: ['sh', '-c', 'mkdir -p /zap/wrk']
+      #   volumeMounts:
+      #   - name: zap-reports
+      #     mountPath: /zap/wrk
+      #   securityContext:
+      #     runAsUser: 0
+      #     runAsGroup: 0
+      #     privileged: true
       containers:
       - name: zap-baseline
         image: {{ .Values.job.image.repository }}:{{ .Values.job.image.tag }}
         command:
-          - "zap-baseline.py"
-          - "-t"
-          - "{{ .Values.targetUrl }}" 
-          - "-r"
-          - "/zap/wrk/{{ .Values.reportFilename }}"  # Dynamic report filename
-        env:
-        - name: AWS_REGION
-          value: "{{ .Values.job.awsRegion }}"
-        - name: S3_BUCKET
-          value: "{{ .Values.job.s3Bucket }}"
-        - name: REPORT_FILENAME
-          value: "{{ .Values.reportFilename }}"  # Pass report filename to the container
+          - "sh"
+          - "-c"
+          - |
+            zap-baseline.py -t "{{ .Values.targetUrl }}" \
+              -J "{{ .Values.job.timestamp }}-report.json" \
+              -d -T 10 -I || true
+            if [ ! -f "/zap/wrk/{{ .Values.job.timestamp }}-report.json" ]; then
+              echo '{"scan_status":"failed","error":"Scan failed to complete","timestamp":"{{ .Values.job.timestamp }}"}' > "/zap/wrk/{{ .Values.job.timestamp }}-report.json"
+            fi
         volumeMounts:
         - name: zap-reports
           mountPath: /zap/wrk
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
       volumes:
       - name: zap-reports
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: zap-reports-pvc
+      restartPolicy: Never
 {{- end }}
