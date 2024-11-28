@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
+      annotations:
+        eks.amazonaws.com/role-arn: "arn:aws:iam::619071345478:role/EksStack-BackendServiceAccountRole"
     spec:
       serviceAccountName: backend-sa
       imagePullSecrets:

@@ -12,6 +12,7 @@ from starlette.responses import Response
 from kubernetes import client, config
 from config import settings
 from urllib.parse import urlparse
+from llm_service import LlmService
 
 app = FastAPI()
 
@@ -56,6 +57,8 @@ config.load_incluster_config()
 k8s_api = client.BatchV1Api()
 core_v1_api = client.CoreV1Api()
 s3_client = boto3.client("s3", region_name="us-west-2")
+
+llm_service = LlmService()
 
 @app.get("/")
 async def root():
@@ -113,7 +116,10 @@ async def zap_basescan(target_url: str):
         report_filename = f"{timestamp}-report.json"
         
         scan_results = await get_zap_report(report_filename)
-        return scan_results
+        # return scan_results # TODO: For now , leave it as it is since I'll turn off LLM frequently
+
+        ai_analysis = await llm_service.analyze_zap_report(scan_results)
+        return ai_analysis
 
         # # File clean up. Not enabled atm.
         # finally:

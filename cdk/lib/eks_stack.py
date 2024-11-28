@@ -12,7 +12,7 @@ from aws_cdk import (
 
 from aws_cdk.lambda_layer_kubectl_v31 import KubectlV31Layer
 from constructs import Construct
-from config import IAM_ROLE_ARN
+from config import IAM_ROLE_ARN, EKS_BACKEND_SERVICE_ACCOUNT_ROLE_ARN
 
 
 class EksStack(Stack):
@@ -56,6 +56,9 @@ class EksStack(Stack):
             "BackendServiceAccount",
             name="backend-sa",
             namespace="default",
+            annotations={
+                "eks.amazonaws.com/role-arn": EKS_BACKEND_SERVICE_ACCOUNT_ROLE_ARN
+            }
         )
 
         # Create CfnJson for the conditions
@@ -102,9 +105,21 @@ class EksStack(Stack):
             resources=[f"{bucket.bucket_arn}/*"]
         )
 
-        # Add policies to the service account
+        # Add SageMaker endpoint invocation permissions
+        sagemaker_policy = iam.PolicyStatement(
+            sid="SageMakerEndpointInvoke",
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "sagemaker:InvokeEndpoint"
+            ],
+            resources=[
+                f"arn:aws:sagemaker:{self.region}:{self.account}:endpoint/mistral-endpoint"
+            ]
+        )
+
         backend_service_account.add_to_principal_policy(csi_policy)
         backend_service_account.add_to_principal_policy(object_policy)
+        backend_service_account.add_to_principal_policy(sagemaker_policy)
 
         # Grant Kubernetes permissions for CSI driver and jobs
         job_permissions = eks.KubernetesManifest(
