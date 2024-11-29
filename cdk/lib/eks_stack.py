@@ -113,7 +113,7 @@ class EksStack(Stack):
                 "sagemaker:InvokeEndpoint"
             ],
             resources=[
-                f"arn:aws:sagemaker:{self.region}:{self.account}:endpoint/mistral-endpoint"
+                f"arn:aws:sagemaker:{self.region}:{self.account}:endpoint/*"
             ]
         )
 
