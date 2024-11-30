@@ -119,7 +119,15 @@ async def zap_basescan(target_url: str):
         # return scan_results # TODO: For now , leave it as it is since I'll turn off LLM frequently
 
         ai_analysis = await llm_service.analyze_zap_report(scan_results)
-        return ai_analysis
+
+        return {
+            "ai_analysis": ai_analysis,
+            "scan_results": scan_results,
+            "metadata": {
+                "timestamp": timestamp,
+                "target_url": target_url,
+            }
+        }
 
         # # File clean up. Not enabled atm.
         # finally:
