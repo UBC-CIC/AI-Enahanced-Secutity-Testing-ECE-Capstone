@@ -20,4 +20,4 @@ s3:
 
 serviceAccount:
   name: backend-sa
-  roleArn: "arn:aws:iam::619071345478:role/EksStack-AestEksBackendServiceAccountRoleBC23901D-9hZvPAxMUGom"
+  roleArn: "arn:aws:iam::619071345478:role/EksStack-AestEksBackendServiceAccountRoleBC23901D-EDMDGaHmKF1C"
