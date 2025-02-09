@@ -26,25 +26,26 @@ export default function Home() {
 
     let lineNumber = 10;
     let pageHeight = 0;
+    const router = useRouter()
 
-    const printPDF = (doc: jsPDF, obj : object) => {
-        for(let key in obj) {
-            if(typeof(obj[key]) === "string") {
+    const printPDF = (doc: jsPDF, obj: object) => {
+        for (let key in obj) {
+            if (typeof (obj[key]) === "string") {
                 // console.log(obj[key]);
 
-                if(lineNumber + 10  > pageHeight - 10) {
+                if (lineNumber + 10 > pageHeight - 10) {
                     doc.addPage();
                     lineNumber = 10;
                 }
 
                 const result = `${key} : ${obj[key]}`;
-                var dim = doc.getTextDimensions(result, {maxWidth : 180});
-                doc.text(result, 10, lineNumber, {maxWidth: 180});
+                var dim = doc.getTextDimensions(result, { maxWidth: 180 });
+                doc.text(result, 10, lineNumber, { maxWidth: 180 });
 
                 lineNumber = lineNumber + dim.h;
 
             } else if (Array.isArray(obj[key])) {
-                if(lineNumber + 10  > pageHeight - 10) {
+                if (lineNumber + 10 > pageHeight - 10) {
                     doc.addPage();
                     lineNumber = 10;
                 }
@@ -56,7 +57,7 @@ export default function Home() {
                 printPDF(doc, obj[key]);
 
             } else {
-                if(lineNumber + 10  > pageHeight - 10) {
+                if (lineNumber + 10 > pageHeight - 10) {
                     doc.addPage();
                     lineNumber = 10;
                 }
@@ -68,7 +69,7 @@ export default function Home() {
                 printPDF(doc, obj[key]);
             }
         }
-        
+
 
     }
 
@@ -88,7 +89,7 @@ export default function Home() {
 
         // Create a URL for the Blob
         const pdfUrl = URL.createObjectURL(pdfBlob);
-      
+
         // Open the PDF in a new tab
         window.open(pdfUrl, "_blank");
 
@@ -100,7 +101,11 @@ export default function Home() {
     //     let obj = JSON.stringify(line);
     //     if(obj)
     // }
+    const movePagetoChatAI = () => {
+        sessionStorage.setItem("data", JSON.stringify(response));
+        router.push("/chatUI");
 
+    }
 
 
     useEffect(() => {
@@ -130,12 +135,12 @@ export default function Home() {
 
             // setFetch(true);
 
-            
+
 
             setTimeout(() => {
                 setResponse(resData);
                 setFetch(true);
-            }, 10000);
+            }, 1000);
 
         }
         // Retrieve data from the browser's history state
@@ -157,13 +162,13 @@ export default function Home() {
     return (
         <div className={styles.background2}>
 
-            <div className={styles.page}>
-                <main className={styles.main}>
 
+            {fetched ?
 
-                    {fetched ?
+                <>
+                    <div className={styles.page1}>
+                        <main className={styles.main}>
 
-                        <>
                             <div className="relative flex h-[500px] w-[1000px] flex-col items-center justify-center overflow-hidden rounded-lg border bg-background md:shadow-xl">
                                 <h2> Results have been received</h2>
                                 <ScrollArea className="h-500px w-1000px rounded-md border">
@@ -174,17 +179,28 @@ export default function Home() {
                                 </ScrollArea>
                             </div>
 
-                            <PulsatingButton onClick={downloadPdf}>Download the PDF report</PulsatingButton>
+                            <div className="flex space-x-200 gap-[40px] items-center justify-center">
+                                <PulsatingButton onClick={downloadPdf}>Download the PDF report</PulsatingButton>
+                                <PulsatingButton onClick={movePagetoChatAI}>Connect with a ChatBot</PulsatingButton>
+                            </div>
+
+                        </main>
+
+                    </div>
 
 
 
-                        </>
 
 
-                        :
+                </>
 
 
-                        <>
+                :
+
+
+                <>
+                    <div className={styles.page}>
+                        <main className={styles.main}>
                             <div className="relative flex h-[350px] w-[500px] flex-col items-center justify-center overflow-hidden rounded-lg border bg-background md:shadow-xl">
 
                                 <span className="pointer-events-none whitespace-pre-wrap bg-gradient-to-b from-black to-gray-300/80 bg-clip-text text-center text-6xl font-semibold leading-none text-transparent dark:from-white dark:to-slate-900/10">
@@ -194,23 +210,24 @@ export default function Home() {
                                 <Meteors number={100} />
 
                             </div>
+                        </main>
+
+                    </div>
 
 
-                        </>
+                </>
 
-                    }
-
-
-
-
-
-
+            }
 
 
 
-                </main>
 
-            </div>
+
+
+
+
+
+
         </div >
     );
 }

@@ -1,13 +1,23 @@
 import { ChatInput } from "@/components/ui/chat/chat-input"
 import { Button } from "@/components/ui/button"
-import { CornerDownLeft } from "lucide-react"
+import { CornerDownLeft, CornerDownRight, CornerRightDown } from "lucide-react"
 
-export function ChatButton() {
+interface ChatButtonProps {
+    submitButton: (message: string, event: React.FormEvent<HTMLFormElement>) => void; // Define a function type
+  }
+
+export function ChatButton({submitButton}: ChatButtonProps) {
+
+    const submitForm  = (event: React.FormEvent<HTMLFormElement>) => {
+        submitButton(event.currentTarget[0].value, event);
+        event.preventDefault();
+    }
     return (
 
-        <div className="border-t border-gray-700 p-4 bg-black fixed bottom-0 w-[550]">
+        <div className="border-t border-gray-700 p-4 bg-black fixed bottom-0 w-[650]">
             <form
                 className="relative rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1"
+                onSubmit={submitForm}
             >
                 <ChatInput
                     placeholder="Type your message here..."
@@ -19,7 +29,7 @@ export function ChatButton() {
                         className="ml-auto gap-1.5"
                     >
                         Send Message
-                        <CornerDownLeft className="size-3.5" />
+                        <CornerDownRight className="size-2.5" />
                     </Button>
                 </div>
             </form>
