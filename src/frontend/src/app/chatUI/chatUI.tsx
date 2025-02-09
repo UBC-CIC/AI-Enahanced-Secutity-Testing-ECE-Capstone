@@ -17,21 +17,21 @@ interface Message {
 const messages: Message[] = [
     {
         id: 1,
-        message: 'Hello, how has your day been? I hope you are doing well.',
-        sender: 'user',
+        message: 'Hello, how has your day been? I can help you with any questions you have with the report',
+        sender: 'bot',
         isLoading: false
     },
     {
         id: 2,
-        message: 'Hi, I am doing well, thank you for asking. How can I help you today?',
-        sender: 'bot',
+        message: 'What strategies can I use to further secure my app given the report has been generated',
+        sender: 'user',
         isLoading: false
     },
     {
         id: 3,
-        message: 'Good Bye!',
+        message: '',
         sender: 'bot',
-        isLoading: false,
+        isLoading: true,
     },
 ];
 
