@@ -10,11 +10,21 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from kubernetes import client, config
-from config import settings
+# from config import settings  # TODO: temp comment out. Please uncomment me if needed @Andrew!
 from urllib.parse import urlparse
+import sys
+
+# Configure detailed logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
-logging.basicConfig(level=logging.INFO)
 
 # Allow all origins for now for local testing (prevents CORS errors)
 # TODO: Review and update origins once we are ready to deploy
@@ -96,4 +106,29 @@ async def zap_basescan(target_url: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid URL format")
 
-    return await owasp_client.zap_basescan(target_url)
+    logger.info(f"Starting ZAP scan for URL: {target_url}")
+    
+    try:
+        # Start the scan in background and return the scan_id immediately
+        scan_id = await owasp_client.start_zap_basescan(target_url)
+        logger.info(f"Scan initiated with ID: {scan_id}")
+        return {"scan_id": scan_id, "status": "initiated", "message": "Scan started successfully"}
+    except Exception as e:
+        logger.error(f"Error starting ZAP scan: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start ZAP scan: {str(e)}")
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Application starting up")
+    # Do any additional startup tasks here
+
+@app.get("/zap/scan-status/{scan_id}")
+async def get_scan_status(scan_id: str):
+    """Check the status of a ZAP scan and return the report if available"""
+    logger.info(f"Checking status for scan ID: {scan_id}")
+    try:
+        result = await owasp_client.check_scan_status(scan_id)
+        return result
+    except Exception as e:
+        logger.error(f"Error checking scan status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to check scan status: {str(e)}")

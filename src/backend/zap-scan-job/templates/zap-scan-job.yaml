@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.job.name }}-{{ .Values.job.timestamp }}
+  name: {{ .Values.job.name }}
   namespace: {{ .Values.job.namespace }}
 spec:
   parallelism: 1  # Ensures only one pod runs at a time

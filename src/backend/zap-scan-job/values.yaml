@@ -1,5 +1,5 @@
 job:
-  name: zap-basescan-job
+  name: ""  # This will be set dynamically by the backend server
   namespace: default
   timestamp: ""  # This will be set dynamically by the backend server
   image:

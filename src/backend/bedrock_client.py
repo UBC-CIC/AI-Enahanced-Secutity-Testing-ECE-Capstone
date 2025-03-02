@@ -7,7 +7,7 @@ import logging
 from fastapi import HTTPException
 from botocore.exceptions import ClientError
 from fastapi import HTTPException
-from config import settings
+# from config import settings # TODO: temp comment out. Please uncomment me if needed @Anderw!
 
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
@@ -100,7 +100,8 @@ def invoke_bedrock_model(input_text: str):
 
         # Invoke the model
         response = bedrock_runtime_client.invoke_model(
-            modelId=settings.BASE_MODEL_ID,
+            # modelId=settings.BASE_MODEL_ID,
+            modelId="amazon.titan-text-express-v1",  # TODO: temp value. Please update me @Andrew!
             contentType="application/json",
             accept="application/json",
             body=body
