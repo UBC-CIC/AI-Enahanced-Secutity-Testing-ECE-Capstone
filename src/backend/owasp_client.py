@@ -227,16 +227,25 @@ async def check_scan_status(scan_id: str):
             report_response = s3_client.get_object(Bucket=BUCKET_NAME, Key=report_key)
             report_data = json.loads(report_response['Body'].read().decode('utf-8'))
             
-            # Process with Bedrock for AI analysis
-            ai_analysis = await process_report_with_ai(report_data)
+            #! In case we want to bind AI from here
+            # # Process with Bedrock for AI analysis
+            # ai_analysis = await process_report_with_ai(report_data)
             
+            # return {
+            #     "scan_id": scan_id,
+            #     "status": "completed",
+            #     "message": "Scan completed successfully",
+            #     "report": report_data,
+            #     "ai_analysis": ai_analysis
+            # }
+
             return {
                 "scan_id": scan_id,
                 "status": "completed",
                 "message": "Scan completed successfully",
-                "report": report_data,
-                "ai_analysis": ai_analysis
+                "report": report_data
             }
+
         except s3_client.exceptions.NoSuchKey:
             # Report doesn't exist yet, check the status file
             pass
