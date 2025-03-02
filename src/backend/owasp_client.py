@@ -245,6 +245,7 @@ async def check_scan_status(scan_id: str):
                 "message": "Scan completed successfully",
                 "report": report_data
             }
+
         except s3_client.exceptions.NoSuchKey:
             # Report doesn't exist yet, check the status file
             pass
