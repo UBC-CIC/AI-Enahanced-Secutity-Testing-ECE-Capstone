@@ -4,11 +4,20 @@ metadata:
   name: {{ .Release.Name }}
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "1800"
+    ## Commented out TLS v1.2 since we are not allowed to create new ACM certificates
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "{{ .Values.service.sslCertArn }}"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    # service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
 spec:
   type: {{ .Values.service.type }}
   ports:
     - port: 80
       targetPort: 8000
       protocol: TCP
+    ## Commented out TLS v1.2 since we are not allowed to create new ACM certificates
+    # - port: 443
+    #   targetPort: 8000
+    #   protocol: TCP
   selector:
     app: {{ .Release.Name }}
